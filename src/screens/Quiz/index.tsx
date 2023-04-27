@@ -80,6 +80,11 @@ export function Quiz() {
     handleNextQuestion();
   }
 
+  async function resetPointsCountAndReturnHome() {
+    await clearCurrentPoints();
+    navigate('home');
+  }
+
   function handleStop() {
     Alert.alert('Parar', 'Deseja parar agora?', [
       {
@@ -89,7 +94,7 @@ export function Quiz() {
       {
         text: 'Sim',
         style: 'destructive',
-        onPress: () => navigate('home')
+        onPress: async () => await resetPointsCountAndReturnHome()
       },
     ]);
 

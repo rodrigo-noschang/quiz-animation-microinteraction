@@ -1,0 +1,2 @@
+# React Native Reanimated
+Essa é a biblioteca que utilizaremos para fazer as animações, porque garante bastante possibilidades de animações, e desempenho já que elas são rodadas na thread de interface nativa do usuário. A documentação pode ser encontrada [aqui](https://docs.swmansion.com/react-native-reanimated/docs).

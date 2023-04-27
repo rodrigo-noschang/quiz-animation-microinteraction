@@ -15,6 +15,8 @@ type Props = {
 }
 
 export function Question({ question, alternativeSelected, setAlternativeSelected }: Props) {
+
+  
   return (
     <View style={styles.container}>
       <Text style={styles.title}>

@@ -8,6 +8,8 @@ type Props = TouchableOpacityProps & {
 }
 
 export function Option({ checked, title, ...rest }: Props) {
+  
+
   return (
     <TouchableOpacity
       style={

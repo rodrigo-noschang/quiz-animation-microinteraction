@@ -7,6 +7,7 @@ import { styles } from './styles';
 
 import { QUIZ } from '../../data/quiz';
 import { historyAdd } from '../../storage/quizHistoryStorage';
+import { getCurrentPoints, updatePoints, clearCurrentPoints } from '../../storage/quizPoints';
 
 import { Loading } from '../../components/Loading';
 import { Question } from '../../components/Question';
@@ -21,7 +22,6 @@ interface Params {
 type QuizProps = typeof QUIZ[0];
 
 export function Quiz() {
-  const [points, setPoints] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [quiz, setQuiz] = useState<QuizProps>({} as QuizProps);
@@ -40,6 +40,8 @@ export function Quiz() {
   }
 
   async function handleFinished() {
+    const points = await getCurrentPoints();
+
     await historyAdd({
       id: new Date().getTime().toString(),
       title: quiz.title,
@@ -47,6 +49,8 @@ export function Quiz() {
       points,
       questions: quiz.questions.length
     });
+
+    await clearCurrentPoints();
 
     navigate('finish', {
       points: String(points),
@@ -66,9 +70,9 @@ export function Quiz() {
     if (alternativeSelected === null) {
       return handleSkipConfirm();
     }
-
+    
     if (quiz.questions[currentQuestion].correct === alternativeSelected) {
-      setPoints(prevState => prevState + 1);
+      await updatePoints(1);
     }
 
     setAlternativeSelected(null);

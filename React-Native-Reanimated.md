@@ -112,3 +112,12 @@ Agora vamos criar um estilo animado para o nosso background usando o Interpolate
 ```
 
 A função InterpolateColor recebe 3 parâmetros, o primeiro é **a variável** que dá origem à animação, que precisa ser um shared value, o segundo são **os valores que essa variável pode assumir**, e o terceiro, são **os valores que a propriedade vai assumir**, no nosso caso, a propriedade é o backgroundColor. Para deixar essa transição ainda mais sauve, e ainda mais visível, podemos alterar o valor do **checked.value** usando algum dos suavizadores, conforme visto acima.
+
+## Criando componentes Animados:
+Em alguns casos podemos quere aplicar animações em componentes que não nos são fornecidos dentro o `Animated`, como o caso do `Pressable`. Para contornar essa situação e poder ter um componente Pressable animável, podemos criar nosso próprio componente:
+
+```js
+    const PressableAnimated = Animated.createAnimatedComponent(Pressable);
+```
+
+Assim, podemos usar esse componente `PressableAnimated` no lugar do antigo Pressable, e passar todos os estilos animados para ele. Isso nos permite tirar componentes extras, como Views, que estavam no código somente para o uso da animação.

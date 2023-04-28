@@ -90,3 +90,25 @@ Além do valor do shared value, podemos também definir algumas configurações 
 ```
 
 O **Easing** também é importado do rnr
+
+## Interpolação de cores:
+Para essa animação, vamos fazer com que a cor de fundo dos filtros do quiz façam uma transição mais suave entre o transparente e a sua própria cor. Essa mudança de cores é feita baseada no valor do **isChecked**, que é fornecido ao componente por Props, mas, como queremos que haja uma transição suave na cor, ou seja, que a cor mude gradualmente dependendo do valor dessa variável, ela não pode ser uma variável simples, precisa ser um **shared value**.
+
+Então, criaremos uma variável de valor compartilhado e utilizaremos um useEffect que altera o valor dessa variável com base no valor do isChecked, se ele for false, a variável nova recebe 0, se for true, recebe 1. E também colocamos o próprio isChecked no array de dependência. Assim que fizermos essa estratégia para controle do valor da variável, vamos importar o **InterpolateColor** do `react-native-reanimated`.
+
+Agora vamos criar um estilo animado para o nosso background usando o Interpolate Color, a criação fica da seguinte forma, reaproveitando o useAnimatedStyle de antes:
+
+```js
+    const animatedContainerStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{scale: scale.value}],
+            backgroundColor: interpolateColor(
+                checked.value,
+                [0, 1],
+                ['transparent', COLOR]
+            )
+        }
+    })
+```
+
+A função InterpolateColor recebe 3 parâmetros, o primeiro é **a variável** que dá origem à animação, que precisa ser um shared value, o segundo são **os valores que essa variável pode assumir**, e o terceiro, são **os valores que a propriedade vai assumir**, no nosso caso, a propriedade é o backgroundColor. Para deixar essa transição ainda mais sauve, e ainda mais visível, podemos alterar o valor do **checked.value** usando algum dos suavizadores, conforme visto acima.

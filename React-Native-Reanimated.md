@@ -121,3 +121,69 @@ Em alguns casos podemos quere aplicar animações em componentes que não nos s�
 ```
 
 Assim, podemos usar esse componente `PressableAnimated` no lugar do antigo Pressable, e passar todos os estilos animados para ele. Isso nos permite tirar componentes extras, como Views, que estavam no código somente para o uso da animação.
+
+## Implementando animação de Shake:
+A estrutura é basicamnete a mesma, teremos um shared value, um animated style e um animated component. A diferença é que, dessa vez, a animação de shake exige um translate horizontal que vai até um valor positivo (para levar o elemento à direita), e depois um valor negativo, ou zero (para levar o elemnto à esquerda) e então parecer que ele está tremendo. 
+
+Então, ao invés de alterar o valor do shared value para um valor único, vamos usar uma sequencia de valores, com o **withSequence**, do próprio `react-native-reanimated`. Assim, podemos definir os valores da seguinte forma (e obviamente também podemos incluir os suavizadores):
+
+```js
+    const shake = useSharedValue(0);
+
+    function shakeAnimation() {
+        shake.value = withSequence(
+          withTiming(3, {duration: 400, easing: Easing.bounce}), 
+          withTiming(0)
+        );
+    }
+```
+
+Essa função pode ser chamada no momento em que queremos que o elemento seja "chacoalhado". Para o estilo animado, o padrão segue o mesmo também:
+
+```js
+    const shakeStyleAnimation = useAnimatedStyle(() => {
+        return {
+            transform: [{translateX: shake.value}]
+        }
+    })    
+```
+
+Dessa forma, estamos usando o próprio valor do `shake` para deslocar o componente, podemos também usar o recurso do **interpolate**, também da lib do RNR, para que o componente de desloque de forma gradual e em diferente direções, usando o valor do shake como referência:
+
+```js
+    const shakeStyleAnimation = useAnimatedStyle(() => {
+        return {
+            transform: [{
+                translateX: interpolate(
+                    shake.value,
+                    [0, 0.5, 1, 1.5, 2, 2.5, 3],
+                    [0, -15, 0, 15, 0, -15, 0]
+                )
+            }]
+        }
+    })
+```
+
+Para cada ponto no array dos valores do shake (o array que vai de 0 a 3) teremos um deslocamento equivalente no array abaixo dele. Assim, usando apenas uma sequencia de valores, conseguimos um deslocamento bidirecional e progressivo.
+
+## Animações de Entrada e Saída:
+O próprio RNR fornece várias animações prontas na sua biblioteca, e para aplicá-las é muito simples: Estando em um componente animado, temos acessoa a props **entering** e **exiting**. Basta selecionar alguma dessas animações e colocar nessas propriedades:
+
+```js
+    <Animated.View 
+        entering = {FlipInYLeft.duration(800).easing(Easing.bounce)}
+        exiting = {FlipOutYRight.duration(400)}
+        style = {{width: 50, height: 50, backgroundColor: 'red'}}
+    />
+```
+
+Também é possível detalhar o comportamento da função setando parâmetros dela como a duração, easing, delay, etc... É importante se atentar que animações com `In` no nome são usadas **exclusivamente** no entering, e animações com o `Out` no nome, **exclusivamente** no exiting =D. 
+
+Podemos também fazer um efeito, numa lista de cards, por exemplo, onde os itens vão aparecendo um depois do outro, usando o index deles para multiplciar um valor de delay e, obviamente, usar isso para crar delays variados para os cards, dando o efeito de que eles aparecem um depois do outro. Usando o exemplo acima, ficaria mais ou menos assim:
+
+```js
+    <Animated.View 
+        entering = {FlipInYLeft.duration(800).easing(Easing.bounce).delay(150 * index)}
+        style = {{width: 50, height: 50, backgroundColor: 'red'}}
+    />
+```

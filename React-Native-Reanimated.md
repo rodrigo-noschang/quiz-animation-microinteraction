@@ -187,3 +187,65 @@ Podemos também fazer um efeito, numa lista de cards, por exemplo, onde os itens
         style = {{width: 50, height: 50, backgroundColor: 'red'}}
     />
 ```
+
+# Keyframes:
+O recuros do **Keyframes** (nesse caso, também importado do `react-native-reanimated`) é utilizado para conseguirmos criar uma animação personalizada, onde podemos editá-la quadro a quadro (frame a frame). Para criar essa animação, criamos uma nova instância dessa classe Keyframes, e definimos as etapas dela exatamente como na web: 
+
+```js
+    import { Dimensions } from 'react-native';
+    import Aniamted, { Keyframe } from 'react-native-reanimated';
+
+    const SCREEN_WIDTH = Dimensions.get('window').width;
+
+    const enteringKeyframe = new Keyframe({
+        0: {
+            opacity: 0,
+            transform: [
+                { translateX: SCREEN_WIDTH },
+                { rotate: '90deg' }
+            ]
+        },
+        70: {
+            opacity: 0.3
+        },
+        100: {
+            opacity: 1,
+            transform: [
+                { translateX: 0 },
+                { rotate: '0deg' }
+            ]
+        }
+    })
+```
+
+Aqui definimos o passo a passo da nossa animação de entrada, ele começa com opacidade 0, rotacionada em 90º e fora da tela, aos 70% da animação ela ganha opacidade de 30% e, ao final, nos 100%, ela fica com opacidade de 100%, volta para o meio da tela e perde toda a "rotacionalidade" que ela tinha, ou seja, fica na posição original dela. Depois, basta atribuirmos essa animação para o nosso componente na prop de **entering**:
+
+```js
+    <Animtad.View entering = {enteringKeyframe}>
+        ...
+    </Animated.View>
+```
+
+Para ver como é feito realmente, veja o componente `Question.tsx`.
+
+
+OBS: Nessa animação usamos alguns recursos do react-native para descobrir o tamanho do dispositivo, o **Dimensions**. A titulo de curiosidade, também temos acesso ao **useDimensions**, que serve para exatamente a mesma coisa, mas ele também detecta mudanças nas dimensões do dispositivo, que acontecem, por exemplo, quando o usuário deita o dispositivo na hortizontal para ver um vídeo em full screen. 
+
+## Animação de Layout:
+Também é possível fazer animações quando acontece uma alteração no layout de uma tela como, por exemplo, quando um item de uma listagem é deletado. É possível deixar a reorganização da nova lista (agora sem o elemento deletado) mais suave. A aplicação disso não poderia ser mais simples: no elemento das listas, basta acessarmos a propriedade `layout` (esse elemento da lista **PRECISA** ser um componente animado), e nela definimos uma animação para essa recomposição de layout. Esse valor pode ser obtido de dentro do objeto **Layout**, que é importando do RNR. Veja o exemplo feito para a listagem dos itens do histórico, na screen `History/index.tsx`:
+
+```javascript
+    history.map((item) => (
+        <AnimatedTouchableOpacity
+            key={item.id}
+            entering = {SlideInLeft}
+            exiting = {SlideOutRight}
+            layout = {Layout.springify()}
+            onPress={() => handleRemove(item.id)}
+        >
+            <HistoryCard data={item} />
+        </AnimatedTouchableOpacity>
+    ))
+```
+
+Fica ainda mais legal se definirmos uma animação de exiting e entering para esse componente.

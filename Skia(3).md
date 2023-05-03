@@ -77,4 +77,88 @@ Uma outra forma de fazer isso é, numa animação já existente, usar o `withCal
     >
 ```
 
-Essa função onUnmount está sendo passada por prop, mas o que é importa mesmo é a estrutura da execução
+Essa função `onUnmount` está sendo passada por prop, mas o que é importa mesmo é a estrutura da execução.
+
+## Criando Elementos com Skia:
+A ideia agora é criar o componente para indicar qual alternativa do quiz está selecionada. Vamos fazer um cículo ao lado da alternativa que, quando não selecionado, fica apenas uma borda cinza, quando selecionado, fica com um círculo menor verde dentro e uma borda verde é desenhada gradualmente ao redor desse círculo menor.
+
+Para fazer essa borda que é desenhada gradualmente vamos primeiro criar um **Path** circular:
+
+```js
+    import { Canvas, Skia, Path } from '@shopify/react-native-skia';
+
+    const path = Skia.Path.Make();
+    path.addCircle(SIZE_X, SIZE_Y, RADIUS);
+    ...
+
+    <Canvas style = {{ width: 2 * SIZE_X, height: 2 * SIZE_Y }}>
+        <Path
+            path = {path}
+            color = {THEME.COLORS.GREY_500}
+            style = 'stroke'
+            strokeWidth = {2}
+        />
+    </Canvas>
+```
+
+Assim já devemos ver um círculo vazio (apenas a borda) ao lado do texto da alternativa. Para definir o efeito da borda sendo desenhada, vamos atribuir um valor para a prop **start** (entre 0 e 1) e alternar os valores da prop **end** também entre 0 e 1, e assim a borda vai ser gradualmente desenhada. Verifique o arquivo `Option/index.tsx` para ver como é feito.
+
+## Elementos de Animação com o Skia:
+Para fazer animação com o Skia também precisamos de um "shared value", que a estilização consegue entender como algo que muda e, portanto, precisa aplicar uma animação sobre essa mudança. No caso do Skia, ao invés de usar um useSharedValue, usamos o **useValue**, e seu uso é bastante semelhante ao do RNR, tanto para a criação, quanto para a mudança de valor:
+
+```js
+    import { useValue } from '@shopify/react-native-skia';
+
+    // Criação
+    const percentage = useValue(0);
+
+    // Atribuição
+    percentage.current = 1;
+    percengate.current = 0;
+```
+
+Assim como no RNR, quando fazemos a atribuição dessa forma, a mudança de valor ocorre de forma instantânea e brusca, por isso no Skia, também temos os suavizadores de transição. Semelhante ao `withTiming` temos o `runTiming`:
+
+```js
+    import { runTiming } from '@shopify/react-native-skia';
+
+    // Atribuição
+    runTiming(percentage, 1, { duration: 700 })
+    runTiming(percentage, 0, { duration: 700 })
+```
+
+E para que esse valor seja levado em consideração na animação, não é necessário criar um estilo animado, basta fornecê-lo direto à propriedade do elemento que queremos animar:
+
+```jsx
+    <Canvas style = {{ width: 2 * SIZE_X, height: 2 * SIZE_Y }}>
+        <Path
+            path = {path}
+            color = {THEME.COLORS.GREY_500}
+            style = 'stroke'
+            strokeWidth = {2}
+            start = {0}
+            end = {percentage}
+        />
+    </Canvas>
+```
+
+Para fazer o círculo de dentro dessa opção, vamos pegar direto o elemento **Circle** de dentro do Skia e também, como queremos que ele apareça de forma suavizada, também vamos criar um valor específico pra ele:
+
+```jsx
+    const circle = useValue(0);
+    ...
+
+    // Easing também é importado do Skia
+    runTiming(circle, CENTER_CIRCLE, { duration: 500, easing: Easing.bounce })
+    runTiming(circle, 0, { duration: 200 })
+    ...
+
+    <Circle
+        cx = {28}
+        cy = {28}
+        r = {circle}
+        color = {THEME.COLORS.BRAND_LIGHT}
+    />
+```
+
+Novamente, veja toda a lógica implementada no arquivo `Option/index.tsx`, também com o BlurMask para dar um efeitinho mais bacana.

@@ -137,8 +137,11 @@ Depois disso, podemos pegar o valor de offset dessa scrollview, usando a prop **
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.question}
         onScroll={scrollHandler}
+        scrollEventThrottle = {16}
     >
 ```
+
+OBS: adicionamos também uma prop **scrollEventThrottle = {16}** que tem utilidade somente para o `iOS`, para deixar o scroll um pouco mais fluído, já que essa animação lá fica um pouco travada.
 
 O próximo passo é criar um novo header, com o nome do quiz e uma outra barra de progresso que é o componente que vai ser exibido quando o Header normal do Quiz for escondido. Vamos criar esse header em cima da nossa ScrollView, já que ele será um elemento com position absolute. Para ver como ficaram as estilizações, veja a screen `Quiz/index.tsx` `Quiz/styles.ts`.
 
@@ -171,3 +174,116 @@ Para dar uma enfeitada aqui, podemos também fazer com que o componente `QuizHea
         }
     })
 ```
+
+## Pular a perugnta arrastando ela pro lado:
+O primeiro passo para permitir que isso aconteça, é identificar o evento de "arrastar para o lado", nesse caso não podemos usar um simples Swipe, precisamos usar um detector um pouco mais elaborado, é aí que entra a lib do `react-native-gesture-handler`. Dela, vamos importar o **GestureDetector**, e o **Gesture**. O primeiro vamos usar para envolver todo o nosso componente que vai sofrer esse evento, no caso o componente `Question`, e passamos para ele a função que vai ser executada assim que algum gesto for detectado.
+
+```js
+    <GestureDetector gesture = {onPan}>
+        <Animated.View > 
+            <Question
+                key={quiz.questions[currentQuestion].title}
+                question={quiz.questions[currentQuestion]}
+                alternativeSelected={alternativeSelected}
+                setAlternativeSelected={setAlternativeSelected}
+            />
+        </Animated.View>
+    </GestureDetector>
+```
+
+Essa função `onPan` é a que criaremos a seguir (exemplo apenas para ver o objeto event). Nela usaremos o objeto **Gesture**, que nos permite acessar um método dentro dele que descreva o tipo do evento que estamos procurando, como **Pan**, **LongPress**, **Pinch**, **Rotation**, etc... e dentro desses métodos, podemos pegar outros métodos que descrevam os momentos desses gestos/eventos, como quando eles começam (**onStart**) , quando terminam (**onStop**), quando atualizam (**onUpdate**), assim por diante, para poder encontrar o momento exato em que queremos que nossa animação aconteça.
+
+```js
+    const onPan = Gesture.Pan().onUpdate((event) => {
+        console.log(event);
+    })
+```
+
+No caso acima, estamos observando algum gesto do tipo Pan e quando ele for atualizado, vamos mostrar na tela tudo sobre esse evento de atualização. Dentro desse objeto, nos interessa em especial o `translationX`, que nos diz o quanto o usuário moveu o dedo na tela horizontalmente e é justamente o valor que guardaremos em um sharedValue, para usarmos na animação.
+
+Após a criação desse sharedValue, a nossa função onPan fica da seguinte forma: 
+```js
+    const cardPosition = useSharedValue(0);
+
+    const onPan = Gesture.Pan()
+        .onUpdate((event) => {
+            cardPosition.value = event.translationX;
+        })
+        .onEnd(() => {
+            cardPosition.value = withTiming(0)
+        })
+```
+
+Adicionamos também, ao final, um **onEnd** para que quando o movimento de Pan se acabasse, o valor desse sharedValue voltasse ao zero de forma gradual, por isso o uso do withTiming.
+
+Podemos agora fazer a animação de arrastar usando o cardPosition como referência e depois atribuí-la à View que está dentro do GestureDetector (que deve ser Animated).
+
+```js
+    const CARD_INCLINATION = 10;
+
+    const dragStyle = useAnimatedStyle(() => {
+        const rotateZ = cardPosition.value / CARD_INCLINATION;
+
+        return {
+            transform: [
+                { translateX: cardPosition.value },
+                { rotateZ: `${rotateZ}deg` }
+            ]
+        }
+    }
+```
+
+Usamos uma variável que cria uma certa inclinação gradual conforme o usuário vai arrastando o card.
+
+## Executando função a partir da animação:
+Primeiro vamos definir um threshold do tanto que o usuário tem que arrastar o cartão para que executemos a função de pular a pergunta. Vamos definir essa quantidade em -200 unidades de medidas. Ou seja, o translationX do card deve ser de 200 (para esquerda, então o valor deve ser negativo) para que entendamos que ele quer descartar aquela pergunta e pular par a próxima.
+
+Vamos verificar esse valor no `onEnd`, ou seja, quando o usuário tiver finalizado seu movimento. A princípio a verificação é bastante simples e a função fica da seguinte forma:
+
+```js
+    .onEnd((event) => {
+        if (event.translationX < CARD_SKIP_AREA) {
+            handleSkipConfirm();
+        } 
+        cardPosition.value = withTiming(0);
+    })
+```
+
+Basicamente, se o usuário puxou o card mais pra esquerda do que o threshold que definimos, chamamos a função que pula a pergunta e, independente do tanto que ele puxar, zeramos o valor inicial do cardPosition para que ele volte à posição inicial. Porém isso vai dar um erro de que a nossa função `handleSkipConfirm()` está rodando em uma thread diferente conforme foi comentado no início do arquivo `React-Native-Reanimated.md`.
+
+Para resolver isso, precisamos explicitar o fato de que queremos usar a thread de Javascript de dentro da animação. Fazemos isso usando o **runOnJS** de dentro da lib do RNR (que também possui seu inverso, o **runOnUI**), que vai servir como um `wrapper` da nossa função, simples assim:
+
+```js
+    import { runOnJS } from 'react-native-reanimated';
+
+    .onEnd((event) => {
+        if (event.translationX < CARD_SKIP_AREA) {
+            runOnJS(handleSkipConfirm)();
+        } 
+        cardPosition.value = withTiming(0);
+    })
+```
+
+Essa animação vai gerar um **problema no Scroll** do nosso componente, isso porque cada gesto tem seu próprio manipulador. Por isso, vamos resolver esse conflito de animações definindo um tempo mínimo que o usuário tem que segurar o cartão antes de conseguir puxar ele para o lado. Para isso, vamos usar um método dentro do *onPan* chamado **activateAfterLongPress(TEMPO)** e passamos o tempo que o evento deve esperar antes de ser chamado. Nosso onPan, geral, fica assim (DETALHE, adicionei um recurso onde, se o usuário puxar o card para a direita, ele dá só uma mexidinha e já volta pro lugar, para ter um indicativo visual de que não tem nada rolando praquele lado):
+
+```js
+    const onPan = Gesture.Pan()
+        .activateAfterLongPress(100)
+        .onUpdate((event) => {
+            if (event.translationX < 0) {
+                cardPosition.value = event.translationX;
+            } else {
+                cardPosition.value = withTiming(10);
+            }
+        })
+        .onEnd((event) => {
+            if (event.translationX < CARD_SKIP_AREA) {
+                runOnJS(handleSkipConfirm)();
+            }
+        
+            cardPosition.value = withTiming(0)
+        })
+```
+
+## Detectando vários gestos dentro de um único GestureDetector:
+Como vimos antes, sempre que queremos detectar um gesto sobre um componente passamos ele para a prop `gesture` do **GestureDetector**, mas se quisermos pegar mais de um gesto nesse mesmo detetor, podemos usar as funcionalidades do próprio **Gesture** para definir como esses multiplos gestos serão lidos pelo componente. Dentro do Gesture, temos métodos como o **Gesture.Simultaneous(gesto1, gesto2, gesto3, ...)**, que vai ler vários simultâenos (e executar suas funções simultaneamente), temos o **Gesture.Race(gesto1, gesto2, gesto3, ...)**, que vai pegar apenas o primeiro gesto detectado e ignorar os que forem detectados em seguida, entre outros métodos.

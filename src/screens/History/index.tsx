@@ -92,6 +92,7 @@ export function History() {
                     <Trash size = {32} color = {THEME.COLORS.GREY_100}/>
                   </View>
                 )}
+                renderRightActions = {() => null}
               >
                 <HistoryCard data={item} />
               </Swipeable>

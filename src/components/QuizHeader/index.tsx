@@ -12,7 +12,7 @@ interface Props {
 
 export function QuizHeader({ title, totalOfQuestions, currentQuestion }: Props) {
   return (
-    <View style={styles.container}>
+    <View>
       <Text style={styles.title}>
         {title}
       </Text>

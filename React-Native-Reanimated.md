@@ -248,4 +248,4 @@ Também é possível fazer animações quando acontece uma alteração no layout
     ))
 ```
 
-Fica ainda mais legal se definirmos uma animação de exiting e entering para esse componente.
+Fica ainda mais legal se definirmos uma animação de exiting e entering para esse componente. Essa animação vai ter uma pequena quebra de layout quando removermos o **ultimo item da lista**, o container da lista vai "comprimir" ele enquanto ele está sendo removido e o card será tampado enquanto ele sai da tela. Para remover isso, vamos inlcuir na estilização do container da lista (a ScrollView que engloba tudo) um flexGrow: 1. Veja a screen `History/index.tsx` e `History/styles.ts` no estilo do `history`.

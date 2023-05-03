@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, 
   useSharedValue, 
   withSequence,
   withTiming,
   interpolate, 
-  Easing} from 'react-native-reanimated';
+  Easing,
+  useAnimatedScrollHandler,
+  Extrapolate} from 'react-native-reanimated';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { styles } from './styles';
+import { THEME } from '../../styles/theme';
 
 import { QUIZ } from '../../data/quiz';
 import { historyAdd } from '../../storage/quizHistoryStorage';
@@ -18,6 +21,7 @@ import { getCurrentPoints, updatePoints, clearCurrentPoints } from '../../storag
 import { Loading } from '../../components/Loading';
 import { Question } from '../../components/Question';
 import { QuizHeader } from '../../components/QuizHeader';
+import { ProgressBar } from '../../components/ProgressBar';
 import { ConfirmButton } from '../../components/ConfirmButton';
 import { OutlineButton } from '../../components/OutlineButton';
 
@@ -34,11 +38,13 @@ export function Quiz() {
   const [alternativeSelected, setAlternativeSelected] = useState<null | number>(null);
 
   const shake = useSharedValue(0);
+  const scrollY = useSharedValue(0);
 
   const { navigate } = useNavigation();
 
   const route = useRoute();
   const { id } = route.params as Params;
+
 
   function handleSkipConfirm() {
     Alert.alert('Pular', 'Deseja realmente pular a questão?', [
@@ -130,6 +136,33 @@ export function Quiz() {
     }
   })
 
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    }
+  })
+
+  const fixedProgressBarStyles = useAnimatedStyle(() => {
+    return {
+      position: 'absolute',
+      zIndex: 1,
+      paddingTop: 50,
+      backgroundColor: THEME.COLORS.GREY_500,
+      width: '110%',
+      left: '-5%',
+      opacity: interpolate(scrollY.value, [50, 90], [0, 1], Extrapolate.CLAMP),
+      transform: [
+        {translateY: interpolate(scrollY.value, [50, 90], [-40, 0], Extrapolate.CLAMP)}
+      ]
+    }
+  })
+
+  const disappearingHeader = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(scrollY.value, [60, 90], [1, 0])
+    }
+  })
+
   useEffect(() => {
     const quizSelected = QUIZ.filter(item => item.id === id)[0];
     setQuiz(quizSelected);
@@ -142,17 +175,34 @@ export function Quiz() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.question}
-      >
-        <QuizHeader
-          title={quiz.title}
-          currentQuestion={currentQuestion + 1}
-          totalOfQuestions={quiz.questions.length}
+      <Animated.View style = {fixedProgressBarStyles}>
+        <Text style = {styles.title}> 
+          {quiz.title} 
+        </Text>
+
+        <ProgressBar 
+          current = {currentQuestion + 1}
+          total = {quiz.questions.length}
         />
 
-        <Animated.View style = {shakeStyleAnimation}>
+      </Animated.View>
+
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.question}
+        onScroll={scrollHandler}
+      >
+        <Animated.View style = {[styles.quizHeader, disappearingHeader]}>
+          <QuizHeader
+            title={quiz.title}
+            currentQuestion={currentQuestion + 1}
+            totalOfQuestions={quiz.questions.length}
+          />
+        </Animated.View>
+
+      {/* Tire o style = {shakeStyleAnimation} porque tava muita animação uma em cima da outra, então ele não faz o shake quando erramos a pergunta mais */}
+
+        <Animated.View > 
           <Question
             key={quiz.questions[currentQuestion].title}
             question={quiz.questions[currentQuestion]}
@@ -165,7 +215,7 @@ export function Quiz() {
           <OutlineButton title="Parar" onPress={handleStop} />
           <ConfirmButton onPress={handleConfirm} />
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View >
   );
 }

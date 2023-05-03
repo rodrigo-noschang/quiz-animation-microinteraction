@@ -6,6 +6,10 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.COLORS.GREY_800,
   },
+  quizHeader: {
+    width: '100%',
+    marginBottom: 21,
+  },
   question: {
     alignItems: 'center',
     paddingTop: 80,
@@ -15,5 +19,12 @@ export const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     marginTop: 24,
+  },
+  title: {
+    fontSize: 16,
+    color: THEME.COLORS.GREY_100,
+    fontFamily: THEME.FONTS.BOLD,
+    textAlign: 'center',
+    marginBottom: 5
   }
 });

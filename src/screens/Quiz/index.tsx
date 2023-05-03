@@ -18,7 +18,6 @@ import { THEME } from '../../styles/theme';
 
 import { QUIZ } from '../../data/quiz';
 import { historyAdd } from '../../storage/quizHistoryStorage';
-import { getCurrentPoints, updatePoints, clearCurrentPoints } from '../../storage/quizPoints';
 
 import { Loading } from '../../components/Loading';
 import { Question } from '../../components/Question';
@@ -26,6 +25,7 @@ import { QuizHeader } from '../../components/QuizHeader';
 import { ProgressBar } from '../../components/ProgressBar';
 import { ConfirmButton } from '../../components/ConfirmButton';
 import { OutlineButton } from '../../components/OutlineButton';
+import { OverlayFeedback } from '../../components/OverlayFeedback';
 
 interface Params {
   id: string;
@@ -39,6 +39,8 @@ const CARD_SKIP_AREA = (-200);
 export function Quiz() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [status, setStatus] = useState(0);
+  const [points, setPoints] = useState(0);
   const [quiz, setQuiz] = useState<QuizProps>({} as QuizProps);
   const [alternativeSelected, setAlternativeSelected] = useState<null | number>(null);
 
@@ -60,8 +62,6 @@ export function Quiz() {
   }
 
   async function handleFinished() {
-    const points = await getCurrentPoints();
-
     await historyAdd({
       id: new Date().getTime().toString(),
       title: quiz.title,
@@ -69,8 +69,6 @@ export function Quiz() {
       points,
       questions: quiz.questions.length
     });
-
-    await clearCurrentPoints();
 
     navigate('finish', {
       points: String(points),
@@ -92,19 +90,14 @@ export function Quiz() {
     }
     
     if (quiz.questions[currentQuestion].correct === alternativeSelected) {
-      await updatePoints(1);
+      setStatus(1);
+      setPoints(prevState => prevState + 1);
     } else {
       shakeAnimation();
+      setStatus(2);
     }
 
     setAlternativeSelected(null);
-
-    handleNextQuestion();
-  }
-
-  async function resetPointsCountAndReturnHome() {
-    await clearCurrentPoints();
-    navigate('home');
   }
 
   function handleStop() {
@@ -116,7 +109,7 @@ export function Quiz() {
       {
         text: 'Sim',
         style: 'destructive',
-        onPress: async () => await resetPointsCountAndReturnHome()
+        onPress: () => navigate('home')
       },
     ]);
 
@@ -126,7 +119,12 @@ export function Quiz() {
   function shakeAnimation() {
     shake.value = withSequence(
       withTiming(3, {duration: 400, easing: Easing.bounce}), 
-      withTiming(0)
+      withTiming(0, undefined, (finished) => {
+        'worklet';
+        if (finished) {
+          runOnJS(handleNextQuestion)();
+        }
+      })
     );
   }
 
@@ -203,12 +201,20 @@ export function Quiz() {
     setIsLoading(false);
   }, []);
 
+  useEffect(() => {
+    if (quiz.questions) {
+      handleNextQuestion();
+    }
+  }, [points]);
+
   if (isLoading) {
     return <Loading />
   }
 
   return (
     <View style={styles.container}>
+      <OverlayFeedback status = {status} />
+
       <Animated.View style = {fixedProgressBarStyles}>
         <Text style = {styles.title}> 
           {quiz.title} 
@@ -235,15 +241,14 @@ export function Quiz() {
           />
         </Animated.View>
 
-      {/* Tire o style = {shakeStyleAnimation} porque tava muita animação uma em cima da outra, então ele não faz o shake quando erramos a pergunta mais */}
-
         <GestureDetector gesture = {onPan}>
-          <Animated.View style = {dragStyle}> 
+          <Animated.View style = {[dragStyle, shakeStyleAnimation]}> 
             <Question
               key={quiz.questions[currentQuestion].title}
               question={quiz.questions[currentQuestion]}
               alternativeSelected={alternativeSelected}
               setAlternativeSelected={setAlternativeSelected}
+              onUnmount = {() => setStatus(0)}
             />
           </Animated.View>
         </GestureDetector>

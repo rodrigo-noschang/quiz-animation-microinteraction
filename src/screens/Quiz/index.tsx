@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, Text, View, BackHandler } from 'react-native';
 import Animated, { useAnimatedStyle, 
   useSharedValue, 
   withSequence,
@@ -8,8 +8,11 @@ import Animated, { useAnimatedStyle,
   Easing,
   useAnimatedScrollHandler,
   Extrapolate,
-  runOnJS} from 'react-native-reanimated';
+  runOnJS
+} from 'react-native-reanimated';
+import { Audio } from 'expo-av';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
 
@@ -84,15 +87,25 @@ export function Quiz() {
     }
   }
 
+  async function playSound(isCorret: boolean) {
+    const file = isCorret ? require('../../assets/correct.mp3') : require('../../assets/wrong.mp3');
+    const { sound } = await Audio.Sound.createAsync(file, { shouldPlay: true });
+
+    await sound.setPositionAsync(0);
+    await sound.playAsync();
+  }
+
   async function handleConfirm() {
     if (alternativeSelected === null) {
       return handleSkipConfirm();
     }
     
     if (quiz.questions[currentQuestion].correct === alternativeSelected) {
+      await playSound(true);
       setStatus(1);
       setPoints(prevState => prevState + 1);
     } else {
+      await playSound(false);
       shakeAnimation();
       setStatus(2);
     }
@@ -116,7 +129,9 @@ export function Quiz() {
     return true;
   }
 
-  function shakeAnimation() {
+  async function shakeAnimation() {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
     shake.value = withSequence(
       withTiming(3, {duration: 400, easing: Easing.bounce}), 
       withTiming(0, undefined, (finished) => {
@@ -206,6 +221,12 @@ export function Quiz() {
       handleNextQuestion();
     }
   }, [points]);
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleStop);
+
+    return () => backHandler.remove();
+  }, [])
 
   if (isLoading) {
     return <Loading />
